@@ -1,0 +1,88 @@
+import spotipy
+import spotipy.util as util
+from spotipy.oauth2 import SpotifyClientCredentials
+import pandas as pd
+
+CLIENT_ID = "623abfd0673649e59ad7211005d7bc4b"
+CLIENT_SECRET = "aff9cf93c5064a2abdf8e2a4ccc37457"
+
+# Obtenez un jeton d'accès OAuth
+client_credentials_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
+sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+
+def analyze_playlist(creator, playlist_id):
+    
+    # Create empty dataframe
+    playlist_features_list = ["artist","album","track_name",  "track_id","danceability","energy","key","loudness","mode", "speechiness","instrumentalness","liveness","valence","tempo", "duration_ms","time_signature"]
+    
+    playlist_df = pd.DataFrame(columns = playlist_features_list)
+    
+    # Loop through every track in the playlist, extract features and append the features to the playlist df
+    
+    playlist = sp.user_playlist_tracks(creator, playlist_id)["items"]
+    for track in playlist:
+        # Create empty dict
+        playlist_features = {}
+        # Get metadata
+        playlist_features["artist"] = track["track"]["album"]["artists"][0]["name"]
+        playlist_features["album"] = track["track"]["album"]["name"]
+        playlist_features["track_name"] = track["track"]["name"]
+        playlist_features["track_id"] = track["track"]["id"]
+        
+        # Get audio features
+        audio_features = sp.audio_features(playlist_features["track_id"])[0]
+        for feature in playlist_features_list[4:]:
+            playlist_features[feature] = audio_features[feature]
+        
+        # Concat the dfs
+        track_df = pd.DataFrame(playlist_features, index = [0])
+        playlist_df = pd.concat([playlist_df, track_df], ignore_index = True)
+        
+    return playlist_df
+
+
+def analyze_playlist_dict(playlist_dict):
+    
+    # Loop through every playlist in the dict and analyze it
+    for i, (key, val) in enumerate(playlist_dict.items()):
+        playlist_df = analyze_playlist(*val)
+        # Add a playlist column so that we can see which playlist a track belongs too
+        playlist_df["playlist"] = key
+        # Create or concat df
+        if i == 0:
+            playlist_dict_df = playlist_df
+        else:
+            playlist_dict_df = pd.concat([playlist_dict_df, playlist_df], ignore_index = True)
+            
+    return playlist_dict_df
+
+playlist_dict = {
+    "playlist_1": ("spotify", "21QqVxR4mgGHVj3CZI7WWu"),
+    "playlist_2": ("spotify", "0TP1pWZRHtXweSGfl1hiBC"),
+    "playlist_3": ("spotify", "3Hg2RlGZnJdAS4lQCceBRT"),
+    "playlist_4": ("spotify", "1BWJ7MXPjaib8dKq2rDL21"),
+    "playlist_5": ("spotify", "2RR7xkMst2D76gj6oGWcZ2"),
+    "playlist_6": ("spotify", "4FCbjNTjbad4qnkVDWoKSY"),
+    "playlist_7": ("spotify", "6OTTIV3v5ITh0ILrbVRxJl"),
+    "playlist_8": ("spotify", "6WGaHaIMwWY9e2n5fMiaWK"),
+    "playlist_9": ("spotify", "593e8ggwUzbCnnT7JQeFkO"),
+    "playlist_10": ("spotify", "0Nj3NeMCcR4GR6ocvhh8vb"),
+    "playlist_11": ("spotify", "2cZ217XhuwgrP6hcJ9lCRX"),
+    "playlist_12": ("spotify", "58O4zjTwATYSep8TYSZTr0"),
+    "playlist_13": ("spotify", "0DdQ63h6udf6TdwK8Tbsl7"),
+    "playlist_14": ("spotify", "02okEcUQXHe2sS5ajE9XG0"),
+    "playlist_15": ("spotify", "1yMlpNGEpIVUIilZlrbdS0"),
+    "playlist_16": ("spotify", "37i9dQZEVXbLnolsZ8PSNw"),
+    "playlist_17": ("spotify", "4osr6bzCXAdksfooMnIjWR"),
+    "playlist_18": ("spotify", "7Etwoeq5AUn5EQL1B7GqOe"),
+    "playlist_19": ("spotify", "2wNg3AZoktVPkCNnyPLKuf"),
+    "playlist_20": ("spotify", "37i9dQZF1DXdPec7aLTmlC")
+}
+
+multiple_playlist_df = analyze_playlist_dict(playlist_dict)
+
+# Exporter vers un fichier CSV
+multiple_playlist_df.to_csv("multiple_playlists.csv", index=False)
+
+# Exporter vers un fichier Excel
+multiple_playlist_df.to_excel("multiple_playlists.xlsx", index=False)
